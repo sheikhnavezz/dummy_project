@@ -87,7 +87,8 @@ pipeline {
     stages {
         stage('Checkout Code') {
             steps {
-                git url: 'https://github.com/sheikhnavezz/simplenode.git', branch: 'main'
+                // git url: 'https://github.com/sheikhnavezz/simplenode.git', branch: 'main'
+                checkout scmGit(branches: [[name: '*/main']], extensions: [], userRemoteConfigs: [[credentialsId: 'githubtoken', url: 'https://github.com/sheikhnavezz/simplenode.git']])
             }
         }
 
