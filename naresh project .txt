@@ -1,11 +1,38 @@
-plugins :
+# task : scenario: Achieve automation in this way 
 
-docker cli 
-kubernetes cli 
-manage plugin ------just check it is pre installed
-Credentials Binding
-Git
+## when code is pushed pipeline will run. It will create docker image next, it will push image to docker hub then next, it will deploy image from dockerhub to minikube i.e k8s cluster
 
+create server with ubuntu ami ; t2.medium , 20gb of volume
+
+sudo apt update 
+
+packages to be installed :
+
+docker.io
+jenkins  with jdk17
+minikube start 
+
+jenkins plugins :
+
+docker 
+docker-commons
+kubernetes
+kubernetes cli
+
+jenkins credentials (on dashboard)
+
+DOCKERHUB_CREDENTIALS_PSW  ----- password of your docker registry acc.
+DOCKERHUB_CREDENTIALS_USR  ----- username of your docker registry acc
+dockerhub-credentials-id   ----- username and pass of your docker registry acc.
+kubeconfig-id              ----- .kube/config file 
+
+on terminal
+sudo usermod -aG docker jenkins
+sudo systemctl restart jenkins
+sudo chmod 666 /var/run/docker.sock
+sudo -u jenkins docker ps
+
+create file with name deployment.yaml:
 
 ````deployment.yaml
 
@@ -35,14 +62,9 @@ spec:
 kubectl apply -f deployment.yaml
   
   
-  on the server paste below cmds :
-
-sudo usermod -aG docker jenkins
-sudo systemctl restart jenkins
-sudo chmod 666 /var/run/docker.sock
-sudo -u jenkins docker ps
+ on terminal: 
   
-  
+less .kube/config
   
 cat /home/ubuntu/.minikube/ca.crt | base64 -w 0; echo  
 cat /home/ubuntu/.minikube/profiles/minikube/client.crt | base64 -w 0; echo
@@ -50,9 +72,6 @@ cat  /home/ubuntu/.minikube/profiles/minikube/client.key | base64 -w 0; echo
   
   paste these above lines content in the .kube/config file and also add 
   -data in front of certificate-authority, client-certificate, client-key
-  
-  
-  
   
   
   
