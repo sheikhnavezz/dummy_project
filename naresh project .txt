@@ -1,0 +1,157 @@
+plugins :
+
+docker cli 
+kubernetes cli 
+manage plugin ------just check it is pre installed
+Credentials Binding
+Git
+
+
+````deployment.yaml
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: simple-website-deployment
+  labels:
+    app: simple-website
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: simple-website
+  template:
+    metadata:
+      labels:
+        app: simple-website
+    spec:
+      containers:
+      - name: simple-website
+        image: navezsheikh/simplenode:v1
+        ports:
+        - containerPort: 3000
+
+
+kubectl apply -f deployment.yaml
+  
+  
+  on the server paste below cmds :
+
+sudo usermod -aG docker jenkins
+sudo systemctl restart jenkins
+sudo chmod 666 /var/run/docker.sock
+sudo -u jenkins docker ps
+  
+  
+  
+cat /home/ubuntu/.minikube/ca.crt | base64 -w 0; echo  
+cat /home/ubuntu/.minikube/profiles/minikube/client.crt | base64 -w 0; echo
+cat  /home/ubuntu/.minikube/profiles/minikube/client.key | base64 -w 0; echo
+  
+  paste these above lines content in the .kube/config file and also add 
+  -data in front of certificate-authority, client-certificate, client-key
+  
+  
+  
+  
+  
+  
+pipeline {
+    agent any
+
+    environment {
+        DOCKERHUB_REPO = 'navezsheikh/simplenode'
+        DOCKER_IMAGE_TAG = 'v1'
+        KUBECONFIG_CREDENTIALS_ID = 'kubeconfig-id'  // Replace 'kubeconfig-id' with your actual Jenkins credentials ID for the kubeconfig file
+    }
+
+    stages {
+        stage('Checkout Code') {
+            steps {
+                git url: 'https://github.com/sheikhnavezz/simplenode.git', branch: 'main'
+            }
+        }
+
+        stage('Build Docker Image') {
+            steps {
+                script {
+                    sh 'docker build -t $DOCKERHUB_REPO:$DOCKER_IMAGE_TAG .'
+                }
+            }
+        }
+
+        stage('Push Docker Image to Docker Hub') {
+            steps {
+                script {
+                    withCredentials([usernamePassword(credentialsId: 'dockerhub-credentials-id', usernameVariable: 'DOCKERHUB_CREDENTIALS_USR', passwordVariable: 'DOCKERHUB_CREDENTIALS_PSW')]) {
+                        sh 'echo $DOCKERHUB_CREDENTIALS_PSW | docker login -u $DOCKERHUB_CREDENTIALS_USR --password-stdin'
+                        sh 'docker push $DOCKERHUB_REPO:$DOCKER_IMAGE_TAG'
+                    }
+                }
+            }
+        }
+
+        stage('Deploy to Minikube') {
+            steps {
+                script {
+                    withCredentials([file(credentialsId: KUBECONFIG_CREDENTIALS_ID, variable: 'KUBECONFIG')]) {
+                        sh '''
+                        kubectl set image deployment/simple-website-deployment simple-website=$DOCKERHUB_REPO:$DOCKER_IMAGE_TAG --record
+                        kubectl rollout status deployment/simple-website-deployment
+                        '''
+                    }
+                }
+            }
+        }
+    }
+
+    post {
+        always {
+            script {
+                sh 'docker logout'
+            }
+        }
+    }
+}
+
+
+
+
+
+history: 
+
+
+
+ubuntu@ip-172-31-20-219:~$ cat .kube/config
+apiVersion: v1
+clusters:
+- cluster:
+    certificate-authority-data: LS0tLS1CRUdJTiBDRVJUSUZJQ0FURS0tLS0tCk1JSURCakNDQWU2Z0F3SUJBZ0lCQVRBTkJna3Foa2lHOXcwQkFRc0ZBREFWTVJNd0VRWURWUVFERXdwdGFXNXAKYTNWaVpVTkJNQjRYRFRJME1Ea3dNakEzTkRBeE1Wb1hEVE0wTURrd01UQTNOREF4TVZvd0ZURVRNQkVHQTFVRQpBeE1LYldsdWFXdDFZbVZEUVRDQ0FTSXdEUVlKS29aSWh2Y05BUUVCQlFBRGdnRVBBRENDQVFvQ2dnRUJBTVFGClVNWlVrN1phL1ZQVjFRdjZ1OXp6K29ZcVVtTVNWOUtGVGtldko1SUYzaVlxUG5XTDNyRE5EcGNvVm5HSSt6bmsKSG9DbVp5b0E0U3NmUjV4bTFuNDU3VVU5ZGhPb1BibWdMNG9CdlBuWHZJZWJwWXg0eUdENmxxOUxDRmZZdjg1Sgo5TXV2clMrT0RrWU5mUG1LOTBRN2lQa2N1M3hVQkNGMHVVWDRLVVZPYXFpdnEwQzFBM0Zic0ZkWWhidlFjcExBCjhMWFF0TVVTdUUwUHhzOXhySmx4bXcrNzZ3RlhHSVB1UERmc2xSZnJFazRhS0lBSTYyaG9YYmxaSDVJZTBqNlQKTU5aMkVvMzI2cjhnb3RkTjdSc2lBZXVKRFVPaExxZVZQc1lqb0pUZ25XRFRTVkRxM3BRUk9lbExQb3VoNEVmbgpNQjkvMHkyRUlaR2ZRR2lJVW5zQ0F3RUFBYU5oTUY4d0RnWURWUjBQQVFIL0JBUURBZ0trTUIwR0ExVWRKUVFXCk1CUUdDQ3NHQVFVRkJ3TUNCZ2dyQmdFRkJRY0RBVEFQQmdOVkhSTUJBZjhFQlRBREFRSC9NQjBHQTFVZERnUVcKQkJSTTgwR2g3blZPMXpVVmNVaFAzRkt3Rjl6RGhUQU5CZ2txaGtpRzl3MEJBUXNGQUFPQ0FRRUFiRmZrNTJjQwpnbkJKQ1VwZHJuYlozVTRRVHVseUhGTVUzVitMbDBvSjlCSHhMY0FmKzNqRGpTTXNXV1o3TElzQ3paZVl0a215ClN4eGVuaWtsNzRmZ3VnbFBaYVg4UlVwV05Qc2pYT0Zld1dCTFM5dUN1WU9rSXZUL0tkT1J2bGwxV0JuRTNSY1gKZ0Z1djRGSnhNZldWQ2N0TDlKeWc3bi9vM1d1a2F5Qms5SkRkZ0dQMWNyaUZucVFFbHJoR2V2amZiWlZzaUJiSwp1aVM0VVprUExIeW80VEdGK3ltc2hDdFd1Q3hFUS9UYWRPNjF1L3RLVTZ6cm95ZGhRNUJ2bHFNZHM1ZTYybFNTClZOWGNKUVpYK3dyYzhheTI1Z1dYZ0sxZjV4WDV0cWgxRlFta0tpeTJjN3FFeXhEcVlpQitEU2xLWXJqRGJEaTIKQmduSFdBNktWK0JuM2c9PQotLS0tLUVORCBDRVJUSUZJQ0FURS0tLS0tCg==
+    extensions:
+    - extension:
+        last-update: Tue, 03 Sep 2024 07:40:22 UTC
+        provider: minikube.sigs.k8s.io
+        version: v1.33.1
+      name: cluster_info
+    server: https://192.168.49.2:8443
+  name: minikube
+contexts:
+- context:
+    cluster: minikube
+    extensions:
+    - extension:
+        last-update: Tue, 03 Sep 2024 07:40:22 UTC
+        provider: minikube.sigs.k8s.io
+        version: v1.33.1
+      name: context_info
+    namespace: default
+    user: minikube
+  name: minikube
+current-context: minikube
+kind: Config
+preferences: {}
+users:
+- name: minikube
+  user:
+    client-certificate-data: LS0tLS1CRUdJTiBDRVJUSUZJQ0FURS0tLS0tCk1JSURJVENDQWdtZ0F3SUJBZ0lCQWpBTkJna3Foa2lHOXcwQkFRc0ZBREFWTVJNd0VRWURWUVFERXdwdGFXNXAKYTNWaVpVTkJNQjRYRFRJME1Ea3dNakEzTkRBeE1Wb1hEVEkzTURrd016QTNOREF4TVZvd01URVhNQlVHQTFVRQpDaE1PYzNsemRHVnRPbTFoYzNSbGNuTXhGakFVQmdOVkJBTVREVzFwYm1scmRXSmxMWFZ6WlhJd2dnRWlNQTBHCkNTcUdTSWIzRFFFQkFRVUFBNElCRHdBd2dnRUtBb0lCQVFEeDI5RWwxSEJpM2RZamREeGxtb1U3NHVRK0t1Vk0KMitYZk5hQStNTm5mUk0xWlYwVVRadDl0ZGJqajVFZmtMNFhOWC9UQTdrYlZHZGl2aTN1T1F0b29XQ1NUVmxzUgp2dVhrMm16Nzg2ak5nUWEwY1ZpL3hxbVBaN1d1Nnp6d3BOSTdBdlVORFJFRmdqU3cvbHpZUmRPSk5tL2FPZDlXClhFT3ZXOHFuakNyc05kMnIyaSs3bDB4anY4MjNxWWoyMFNaNERqbkFzcWoydHczVmM0OWVKY2Z1NnUrQWZUY2IKOWR0ZjZmOTlZT3R6bDJCSVFQVnJic3dETVdscmRmbHRmVXhqRzNZRmRZc1NsaXZPY09ucGNheHRKQjNwNnJnVgo2YzNmUWV2TVJmMTh1ejJ2bVRyYXlnVEJTZXhDYlh0Z0ZGY2w3M2FhTXEyYnBDZ0tBMEF4c214eEFnTUJBQUdqCllEQmVNQTRHQTFVZER3RUIvd1FFQXdJRm9EQWRCZ05WSFNVRUZqQVVCZ2dyQmdFRkJRY0RBUVlJS3dZQkJRVUgKQXdJd0RBWURWUjBUQVFIL0JBSXdBREFmQmdOVkhTTUVHREFXZ0JSTTgwR2g3blZPMXpVVmNVaFAzRkt3Rjl6RApoVEFOQmdrcWhraUc5dzBCQVFzRkFBT0NBUUVBRzg3LzFOdjFRT2Rab3pKK1R6NC92ejFwZ3Z4Vm5oK1c4YWhvCnAvM3JmNU16VFJZbGFQUHdUWldMcVdiSU02cnZqRWx0ZWs2MFU2TkNEZTZVZHhXNmxWaVJaOTZ1ZzUwekJqVzcKWFZwZ01vd3drYndPdFNmdUVMeWxiU1BLREtDOGREaXAwMWp0UHZMdzR2UWRadEF5aTRZazRUUHpDeGNJWGNqQgp1bW1vdHlEOEV6V2ZncysxaCszMkRyZEtrZGVEbjc5dG43UkprTHRNTlRERkNoN0NwMTk2R3RaaElZQ05vcFo2CjVJeWd1ZXZvbkd6bFMrZldZR0R2S0NjUDJySEpRWlR1LzBsWUFKT1hUemhCaW8xR2dNM2ZML1d6aEJPUjZJeVkKZXRCc2g1cFI5MHllaTFjQkk1SnN1WTIyVWZhNHl2dlF5alFHMFUyMllVeHd5MlZ0ZkE9PQotLS0tLUVORCBDRVJUSUZJQ0FURS0tLS0tCg==
+    client-key-data: LS0tLS1CRUdJTiBSU0EgUFJJVkFURSBLRVktLS0tLQpNSUlFcEFJQkFBS0NBUUVBOGR2UkpkUndZdDNXSTNROFpacUZPK0xrUGlybFROdmwzeldnUGpEWjMwVE5XVmRGCkUyYmZiWFc0NCtSSDVDK0Z6Vi8wd081RzFSbllyNHQ3amtMYUtGZ2trMVpiRWI3bDVOcHMrL09vellFR3RIRlkKdjhhcGoyZTFydXM4OEtUU093TDFEUTBSQllJMHNQNWMyRVhUaVRadjJqbmZWbHhEcjF2S3A0d3E3RFhkcTlvdgp1NWRNWTcvTnQ2bUk5dEVtZUE0NXdMS285cmNOMVhPUFhpWEg3dXJ2Z0gwM0cvWGJYK24vZldEcmM1ZGdTRUQxCmEyN01BekZwYTNYNWJYMU1ZeHQyQlhXTEVwWXJ6bkRwNlhHc2JTUWQ2ZXE0RmVuTjMwSHJ6RVg5ZkxzOXI1azYKMnNvRXdVbnNRbTE3WUJSWEplOTJtakt0bTZRb0NnTkFNYkpzY1FJREFRQUJBb0lCQUJmbkhxTjdmR1A1QXFuYwpXZis4cHNCRmEwTk5uLzNabWIxV29uQ2pDVlZNaW5MeThndTUxZ2tPWW1oN2JqTjZFdUk2UW9reXcyTmFPNVVWCjF1ODNZaklzaStqWDF3Wkk5SldLbE16Tnh2Z1FjV1l4OFpCNmhOVjhiWE5OSW1leUVtanNvT1ZhVGoxYUlmVUEKSHBMdFM3dTYycEVadVIzaTNubWRPOGtWVEVTdDJQb2Y0dUptRGhFMkNlUmsxNXYxQmNzZXEwd2dBcXBYMUpKVgpHTnVUSDJjcVB1SllVTnVEQUwyZ0J6TUVGN0hGSUpJd0VBZkx1MlN3UTRLb1dKLzJTUU9QRDRLNlo3ZUNZcGlFCitSQnpRUmx0TE8vUS9UL21nSnk3cWtqRGczQThLQSs3akRRMGxYb3Z3M1FONjI0Z055d3ZtZWFDc2lLZ2t6UFgKNnd0eDVtVUNnWUVBOUJBNjExL2JYOHNjbXdXN0hLdEZLMWFPaGxNM041Qi8yOHFhNzNvbklrQkVFWGU5TXQ1MApWLzZGSWh6Tmc1WkFuM2FNbDVvL2dhMFBFZEdzNU9vR3Y1NnR1WUpqTThHUDBsNDNFdVdqQmlsRkZ6akZyMzdMCmF0b3JGQzU4VnhRUVovZjE5akM0NTVqVmJzQnN3b3dJcUZyUjRwT3RIN2hGOXBzN0VTNG5nMk1DZ1lFQS9hLzcKb21wNnBxQ2VCQ2hiYm0vMm9MdVdJbUdJbk9iWklXK0hNbGQ4YWpuZTgxcWpDWUQ2emNlN1pBa09uV3o2Vk4ySgpieXlKQU9Ja3RLOFlScWhzQ1kxZVBYTDlEekFPcjFRdVBIVWNmYStrd0xISHJKVHFSZlhJUkZUTFF6WmVZZjU3CkowU1RqcVJRc2dEbXNodDYrTTZRS0FBc21VSW91U1NyTjNVdGV4c0NnWUFFanVrS2JMZmtLaDcycGp6QVpGSisKWkxkMHVza2xPSVdxelRYbmt4aDRBMHRDS0VKWVdOOURaWFdIRlpLaENvVmFkUlJiSUg1ZkphUkthT2dadm1VeAozdnpQb2lmSUo2MVArSUorejlzam1sRzRCVTlyMzZwYzdJWXhja3pRTTRlNjZWNm1vbkpSb1FFYmVHeVBsWjN6Cnh2NTBoTjJPNGhvc2FPbkpnRnNza1FLQmdRRHpHTDFvVU9MQlk2Nm9TMGY2Vng0ZHZrUkxJKzEyZFJ4aWx1NFcKQnBHNWRVVTVLNFNLS2Vlc1k1WWxjU3hwSExIeHV1ems5T2RBU25Sa0ZGbU44L3k3VnBXVkN1aUdza1dRSzNtMwpBMzVPem81dy9LdGJyTU9tVUxVZERhaE4rdjZNcHdDNmkxTmU0QVJYM3RjeW0zVEdrYUxBUWhKNnRsUXh2bnEzCnhQalZPd0tCZ1FEbmVYa2Zzd3BrMFVqY2lZTmd1aUp2a1BKQ1FaR3ZiSSt4bkkyQTlRRDNVNnpwQVZxellQUDUKand0Qzhlc0hCaWNKalpycUxhWnNDWHFheW0zaFFJVkdkbkRhYW5EbjhWbXlBdHQ0ald0R2wzZlVwWVhOSUFqdwpYRkYxZ3VURExtcitiamxYOTJ1WFp6Z2daVDEvN3o4b1RrOWMxOVhlVWM3Z1NpRmF3aGE0TUE9PQotLS0tLUVORCBSU0EgUFJJVkFURSBLRVktLS0tLQo=

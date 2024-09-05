@@ -1,0 +1,174 @@
+Started by user admin
+[Pipeline] Start of Pipeline
+[Pipeline] node
+Running on Jenkins in /var/lib/jenkins/workspace/job1
+[Pipeline] {
+[Pipeline] withEnv
+[Pipeline] {
+[Pipeline] stage
+[Pipeline] { (Checkout Code)
+[Pipeline] git
+The recommended git tool is: NONE
+No credentials specified
+ > git rev-parse --resolve-git-dir /var/lib/jenkins/workspace/job1/.git # timeout=10
+Fetching changes from the remote Git repository
+ > git config remote.origin.url https://github.com/sheikhnavezz/simplenode.git # timeout=10
+Fetching upstream changes from https://github.com/sheikhnavezz/simplenode.git
+ > git --version # timeout=10
+ > git --version # 'git version 2.43.0'
+ > git fetch --tags --force --progress -- https://github.com/sheikhnavezz/simplenode.git +refs/heads/*:refs/remotes/origin/* # timeout=10
+ > git rev-parse refs/remotes/origin/main^{commit} # timeout=10
+Checking out Revision 1cbcf4f5f8e4ca7fd97a16240fb43a45498fb3ae (refs/remotes/origin/main)
+ > git config core.sparsecheckout # timeout=10
+ > git checkout -f 1cbcf4f5f8e4ca7fd97a16240fb43a45498fb3ae # timeout=10
+ > git branch -a -v --no-abbrev # timeout=10
+ > git branch -D main # timeout=10
+ > git checkout -b main 1cbcf4f5f8e4ca7fd97a16240fb43a45498fb3ae # timeout=10
+Commit message: "init commit"
+ > git rev-list --no-walk 1cbcf4f5f8e4ca7fd97a16240fb43a45498fb3ae # timeout=10
+[Pipeline] }
+[Pipeline] // stage
+[Pipeline] stage
+[Pipeline] { (Build Docker Image)
+[Pipeline] script
+[Pipeline] {
+[Pipeline] sh
++ docker build -t navezsheikh/simplenode:v1 .
+DEPRECATED: The legacy builder is deprecated and will be removed in a future release.
+            Install the buildx component to build images with BuildKit:
+            https://docs.docker.com/go/buildx/
+
+Sending build context to Docker daemon  82.94kB
+Step 1/10 : FROM node:18
+ ---> 45f07525ada0
+Step 2/10 : MAINTAINER sheikhnavez
+ ---> Using cache
+ ---> 42fce493ab63
+Step 3/10 : WORKDIR /usr/src/app
+ ---> Using cache
+ ---> 521e30bf4140
+Step 4/10 : COPY package*.json ./
+ ---> Using cache
+ ---> df97f5937395
+Step 5/10 : COPY server.js ./
+ ---> Using cache
+ ---> dff924093358
+Step 6/10 : COPY index.html ./
+ ---> Using cache
+ ---> 46bb81883f17
+Step 7/10 : COPY style.css ./
+ ---> Using cache
+ ---> 17883ca0a1b6
+Step 8/10 : RUN npm install
+ ---> Using cache
+ ---> f82b25e91c65
+Step 9/10 : EXPOSE 3000
+ ---> Using cache
+ ---> 5175e9567917
+Step 10/10 : CMD ["npm", "start"]
+ ---> Using cache
+ ---> 926d94127cf2
+Successfully built 926d94127cf2
+Successfully tagged navezsheikh/simplenode:v1
+[Pipeline] }
+[Pipeline] // script
+[Pipeline] }
+[Pipeline] // stage
+[Pipeline] stage
+[Pipeline] { (Push Docker Image to Docker Hub)
+[Pipeline] script
+[Pipeline] {
+[Pipeline] withCredentials
+Masking supported pattern matches of $DOCKERHUB_CREDENTIALS_PSW
+[Pipeline] {
+[Pipeline] sh
++ + echo ****
+docker login -u navezsheikh --password-stdin
+WARNING! Your password will be stored unencrypted in /var/lib/jenkins/.docker/config.json.
+Configure a credential helper to remove this warning. See
+https://docs.docker.com/engine/reference/commandline/login/#credentials-store
+
+Login Succeeded
+[Pipeline] sh
++ docker push navezsheikh/simplenode:v1
+The push refers to repository [docker.io/navezsheikh/simplenode]
+3a6ed0acd043: Preparing
+a62afc690722: Preparing
+15adbdda2f53: Preparing
+5662aacbae9f: Preparing
+b6df9cc88458: Preparing
+27703724fdaa: Preparing
+184ab407d05c: Preparing
+7e0f0130441b: Preparing
+fcc0410de5af: Preparing
+1c53d3200911: Preparing
+28e03088bc15: Preparing
+0d80db6a0977: Preparing
+916d866d5b0d: Preparing
+8f4ceb8cc1a2: Preparing
+27703724fdaa: Waiting
+184ab407d05c: Waiting
+7e0f0130441b: Waiting
+fcc0410de5af: Waiting
+1c53d3200911: Waiting
+28e03088bc15: Waiting
+0d80db6a0977: Waiting
+916d866d5b0d: Waiting
+8f4ceb8cc1a2: Waiting
+5662aacbae9f: Layer already exists
+b6df9cc88458: Layer already exists
+3a6ed0acd043: Layer already exists
+a62afc690722: Layer already exists
+15adbdda2f53: Layer already exists
+184ab407d05c: Layer already exists
+1c53d3200911: Layer already exists
+27703724fdaa: Layer already exists
+fcc0410de5af: Layer already exists
+7e0f0130441b: Layer already exists
+28e03088bc15: Layer already exists
+0d80db6a0977: Layer already exists
+8f4ceb8cc1a2: Layer already exists
+916d866d5b0d: Layer already exists
+v1: digest: sha256:1c54f01d24ba64a5e76047e974bfebcc7a2c3f088e7098b6abc707ae189c4a81 size: 3246
+[Pipeline] }
+[Pipeline] // withCredentials
+[Pipeline] }
+[Pipeline] // script
+[Pipeline] }
+[Pipeline] // stage
+[Pipeline] stage
+[Pipeline] { (Deploy to Minikube)
+[Pipeline] script
+[Pipeline] {
+[Pipeline] withCredentials
+Masking supported pattern matches of $KUBECONFIG
+[Pipeline] {
+[Pipeline] sh
++ kubectl set image deployment/simple-website-deployment simple-website=navezsheikh/simplenode:v1 --record
+Flag --record has been deprecated, --record will be removed in the future
+deployment.apps/simple-website-deployment image updated
++ kubectl rollout status deployment/simple-website-deployment
+deployment "simple-website-deployment" successfully rolled out
+[Pipeline] }
+[Pipeline] // withCredentials
+[Pipeline] }
+[Pipeline] // script
+[Pipeline] }
+[Pipeline] // stage
+[Pipeline] stage
+[Pipeline] { (Declarative: Post Actions)
+[Pipeline] script
+[Pipeline] {
+[Pipeline] sh
++ docker logout
+Removing login credentials for https://index.docker.io/v1/
+[Pipeline] }
+[Pipeline] // script
+[Pipeline] }
+[Pipeline] // stage
+[Pipeline] }
+[Pipeline] // withEnv
+[Pipeline] }
+[Pipeline] // node
+[Pipeline] End of Pipeline
+Finished: SUCCESS
